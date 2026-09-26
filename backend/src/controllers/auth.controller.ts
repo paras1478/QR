@@ -1,0 +1,90 @@
+import { Response } from 'express';
+import crypto from 'crypto';
+import { env } from '../config/env';
+import { registerSchema, loginSchema } from '../validators/auth.validator';
+import { registerUser, loginUser, loginOrLinkGoogleUser } from '../services/auth.service';
+import { buildGoogleAuthUrl, exchangeCodeForProfile } from '../services/googleOAuth.service';
+import { signToken } from '../utils/jwt';
+import { ok, fail } from '../utils/apiResponse';
+import { AuthRequest } from '../middleware/auth.middleware';
+
+const cookieOptions = {
+  httpOnly: true,
+  secure: env.isProduction,
+  sameSite: 'lax' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/',
+};
+
+const OAUTH_STATE_COOKIE = 'qrfs_oauth_state';
+
+export async function register(req: AuthRequest, res: Response) {
+  const input = registerSchema.parse(req.body);
+  const user = await registerUser(input);
+  const token = signToken({ userId: user.id });
+  res.cookie(env.cookieName, token, cookieOptions);
+  ok(res, { user }, 201);
+}
+
+export async function login(req: AuthRequest, res: Response) {
+  const input = loginSchema.parse(req.body);
+  const user = await loginUser(input);
+  const token = signToken({ userId: user.id });
+  res.cookie(env.cookieName, token, cookieOptions);
+  ok(res, { user });
+}
+
+export async function logout(req: AuthRequest, res: Response) {
+  res.clearCookie(env.cookieName, { ...cookieOptions, maxAge: undefined });
+  ok(res, { message: 'Logged out' });
+}
+
+export async function me(req: AuthRequest, res: Response) {
+  ok(res, { user: req.user });
+}
+
+export async function googleLogin(req: AuthRequest, res: Response) {
+  if (!env.googleOAuthConfigured) {
+    return fail(res, 'Google login is not configured on this server', 503);
+  }
+
+  const state = crypto.randomBytes(24).toString('hex');
+  res.cookie(OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    secure: env.isProduction,
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000,
+    path: '/api/auth/google',
+  });
+  const url = buildGoogleAuthUrl(state);
+  res.redirect(url);
+}
+
+export async function googleCallback(req: AuthRequest, res: Response) {
+  const { code, state, error } = req.query as { code?: string; state?: string; error?: string };
+  const expectedState = req.cookies?.[OAUTH_STATE_COOKIE];
+  res.clearCookie(OAUTH_STATE_COOKIE, { path: '/api/auth/google' });
+
+  const failureRedirect = `${env.frontendUrl.replace(/\/$/, '')}/login?error=google_auth_failed`;
+
+  if (error || !code || !state || !expectedState || state !== expectedState) {
+    return res.redirect(failureRedirect);
+  }
+
+  try {
+    const profile = await exchangeCodeForProfile(code);
+    const user = await loginOrLinkGoogleUser({
+      googleId: profile.googleId,
+      email: profile.email,
+      name: profile.name,
+      avatarUrl: profile.avatarUrl,
+      emailVerified: profile.emailVerified,
+    });
+
+    const token = signToken({ userId: user.id });
+    res.cookie(env.cookieName, token, cookieOptions);
+    res.redirect(`${env.frontendUrl.replace(/\/$/, '')}/dashboard`);
+  } catch {
+    res.redirect(failureRedirect);
+  }
+}
