@@ -12,6 +12,15 @@ import diagnosticsRoutes from './routes/diagnostics.routes';
 
 const app = express();
 
+// Render (and most PaaS hosts) sit behind a reverse proxy, so Express must be
+// told to trust the X-Forwarded-* headers it sets. This must run before
+// express-rate-limit, which reads X-Forwarded-For to key rate limits and
+// throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR otherwise. "1" trusts exactly one
+// hop (the platform's own proxy), which is correct for Render/Heroku-style
+// single-proxy deployments — it does NOT blindly trust arbitrary client-sent
+// headers beyond that one hop.
+app.set('trust proxy', 1);
+
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(
   cors({

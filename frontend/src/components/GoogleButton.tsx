@@ -1,5 +1,15 @@
+function resolveApiBase(): string {
+  const raw = import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  // VITE_API_URL is expected to already end in "/api" (e.g.
+  // https://backend.example.com/api). If it was misconfigured without that
+  // suffix, normalize it here rather than silently requesting a route that
+  // doesn't exist on the backend (this is exactly how /auth/google 404s
+  // happened in production before).
+  return raw.endsWith('/api') ? raw : `${raw}/api`;
+}
+
 export function GoogleButton({ label = 'Continue with Google' }: { label?: string }) {
-  const apiUrl = import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  const apiUrl = resolveApiBase();
 
   return (
     <a
