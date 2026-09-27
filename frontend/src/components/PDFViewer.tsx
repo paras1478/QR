@@ -60,9 +60,11 @@ export function PDFViewer({ previewUrl, pageCount, onDownloadPage, onDownloadFul
         setFetchState('ready');
       } catch (err) {
         if (cancelled) return;
-        if (import.meta.env.DEV) {
-          console.error('PDF preview fetch failed:', err);
-        }
+        // Always log this (not just in DEV): it's the only way to tell apart
+        // a network/CORS failure, a non-2xx status, or a wrong Content-Type
+        // from the browser console in production, without exposing anything
+        // to the rendered UI.
+        console.error('PDF preview fetch failed:', err);
         setFetchState('error');
       }
     })();
@@ -162,7 +164,10 @@ export function PDFViewer({ previewUrl, pageCount, onDownloadPage, onDownloadFul
         <Document
           file={blobUrl}
           onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-          onLoadError={() => setLoadError(true)}
+          onLoadError={(err) => {
+            console.error('PDF.js failed to parse the fetched PDF:', err);
+            setLoadError(true);
+          }}
           loading={
             <div className="flex h-64 items-center justify-center">
               <LoadingSpinner size={28} />
