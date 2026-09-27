@@ -180,6 +180,41 @@ docker compose up -d --build
 
 This builds and starts the backend (schema is pushed to MongoDB Atlas automatically on container start) and the frontend behind Nginx. MongoDB Atlas and R2 are both external managed services — set `DATABASE_URL` and the `R2_*` variables in `backend/.env` before building; no database container is included since Atlas is cloud-hosted.
 
+### Deploying to Render (or any split frontend/backend host)
+
+The frontend and backend deploy as two separate services with two different URLs (e.g. `https://qr-1-a7y5.onrender.com` for the frontend, `https://qr-9i95.onrender.com` for the backend). Because they're on different origins, this is a **cross-site** deployment and needs care in exactly two places, both already handled in code — you only need to set the right environment variables:
+
+**On the backend service**, set (in Render's dashboard, not a committed file):
+
+```env
+NODE_ENV=production
+FRONTEND_URL=https://qr-1-a7y5.onrender.com
+GOOGLE_CALLBACK_URL=https://qr-9i95.onrender.com/api/auth/google/callback
+DATABASE_URL=<your MongoDB Atlas URI>
+JWT_SECRET=<a long random string>
+STORAGE_DRIVER=r2
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=...
+R2_ENDPOINT=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+`FRONTEND_URL` drives two things: the CORS `origin` (so the browser allows the frontend to call the API with credentials) and the base of every generated QR/share URL (`buildShareUrl()` in `qr.service.ts`) — it must be the **frontend's** URL, never the backend's own URL. `NODE_ENV=production` also switches the auth cookie from `SameSite=Lax` (used in local dev, where both apps share the same origin) to `SameSite=None; Secure` (required for the cookie to be sent on cross-origin API calls in production — without this, login would silently appear to succeed but every subsequent request would come back unauthenticated).
+
+**On the frontend service**, set:
+
+```env
+VITE_API_URL=https://qr-9i95.onrender.com/api
+VITE_APP_URL=https://qr-1-a7y5.onrender.com
+```
+
+These are read at **build time** by Vite (`import.meta.env.VITE_*`), so they must be set in Render's build environment for the frontend service specifically — not the backend's. `frontend/.env.production` in this repo mirrors the same values as a fallback so a plain `vite build` picks them up even if Render's dashboard vars aren't wired up, but Render's own env var configuration takes precedence and is the source of truth. `VITE_API_URL` is used for every API call (`axios` `baseURL` in `services/api.ts`) and the "Continue with Google" link; `VITE_APP_URL` is reserved for building frontend-side absolute links if ever needed (the QR/share URL itself is generated server-side from the backend's `FRONTEND_URL`, so the two must simply be kept equal).
+
+After deploying, verify with `curl -I https://qr-9i95.onrender.com/api/health` and confirm no response or generated link ever contains `localhost`.
+
 ## API Documentation
 
 All responses follow `{ success: true, data }` or `{ success: false, message }`.
@@ -218,7 +253,7 @@ All responses follow `{ success: true, data }` or `{ success: false, message }`.
 
 ## Security Notes
 
-- Passwords hashed with bcrypt (12 rounds); JWTs stored in `httpOnly`, `sameSite=lax` cookies (never `localStorage`).
+- Passwords hashed with bcrypt (12 rounds); JWTs stored in `httpOnly` cookies (never `localStorage`) — `SameSite=Lax` in local dev, `SameSite=None; Secure` in production (required because the frontend and backend are deployed on different origins there).
 - Every protected request re-verifies the user still exists in the database — a deleted account's old JWT is rejected even before expiry.
 - File ownership is enforced server-side via `req.user.id` from the verified JWT; the client can never supply a `userId` for authorization.
 - Filenames are sanitized before being used in storage keys; storage keys are randomly generated and namespaced per user, preventing path traversal and enumeration.
@@ -268,5 +303,10 @@ Covers: registration/login/logout/duplicate-email/invalid-credentials, protected
 - [x] IDOR protection verified (cross-user access + delete both blocked with 403)
 - [x] Dark/light mode across all pages and components
 - [x] Google login links to the same account as email/password for a matching verified email (no duplicates)
-- [x] Automated test suite passing (32/32)
+- [x] Automated test suite passing (32/32, plus new display-name and cookie-attribute tests — not re-run live this session; see note below)
+- [x] Custom QR display name: editable, persisted, shown in place of the raw URL; QR itself always encodes the real share URL
+- [x] Production build embeds the configured `VITE_API_URL`/no `localhost` anywhere in the built JS bundle (verified by grepping `frontend/dist`)
+- [x] Cross-origin production cookie: `SameSite=None; Secure` when `NODE_ENV=production`, `SameSite=Lax` in local dev
+- [x] QR/share URLs are generated server-side from `FRONTEND_URL` only — never the backend's own URL, never localhost when configured correctly
 - [ ] Live end-to-end Google OAuth redirect (requires real `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` — account-linking logic and route wiring are verified, but the live consent-screen round trip needs credentials only you can provide)
+- [ ] Live end-to-end verification against the deployed Render URLs (login, upload, R2, QR scan, share page, PDF viewer/downloads, search, delete) — MongoDB Atlas connectivity from this dev machine has been blocked all session by local antivirus TLS interception (see Troubleshooting), so the full flow could not be exercised live here; the code paths involved are unchanged from what was already tested working pre-deployment, plus the cross-origin cookie fix above.

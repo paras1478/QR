@@ -4,7 +4,10 @@ build/
 
 .env
 .env.local
-.env.production
+
+# frontend/.env.production intentionally NOT ignored — it only contains
+# public production URLs (no secrets) and is committed so Vite/Render
+# picks it up automatically at build time.
 
 storage/uploads/*
 !storage/uploads/.gitkeep

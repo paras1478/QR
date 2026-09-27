@@ -8,10 +8,16 @@ import { signToken } from '../utils/jwt';
 import { ok, fail } from '../utils/apiResponse';
 import { AuthRequest } from '../middleware/auth.middleware';
 
+// Frontend and backend are deployed on different origins/subdomains in
+// production (e.g. Render), so the auth cookie must be sent cross-site.
+// "SameSite=None" is required for that — and browsers mandate "Secure"
+// whenever SameSite=None is used, which is satisfied since production
+// is always served over HTTPS. In local dev both apps share the same
+// site (loopback), so "Lax" is used there since it doesn't require HTTPS.
 const cookieOptions = {
   httpOnly: true,
   secure: env.isProduction,
-  sameSite: 'lax' as const,
+  sameSite: (env.isProduction ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: '/',
 };
@@ -52,7 +58,7 @@ export async function googleLogin(req: AuthRequest, res: Response) {
   res.cookie(OAUTH_STATE_COOKIE, state, {
     httpOnly: true,
     secure: env.isProduction,
-    sameSite: 'lax',
+    sameSite: env.isProduction ? 'none' : 'lax',
     maxAge: 10 * 60 * 1000,
     path: '/api/auth/google',
   });

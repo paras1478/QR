@@ -16,6 +16,22 @@ describe('Auth', () => {
     expect(res.headers['set-cookie']).toBeDefined();
   });
 
+  it('sets the auth cookie with SameSite=Lax in non-production (same-site local dev)', async () => {
+    // Production uses SameSite=None + Secure instead, since the frontend and
+    // backend are deployed on different origins there and the cookie must
+    // be sent cross-site — see cookieOptions in auth.controller.ts.
+    const email = uniqueEmail('cookie-attrs');
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Test', email, password: 'password123' });
+
+    const cookies = res.headers['set-cookie'] as unknown as string[];
+    const authCookie = cookies.find((c) => c.startsWith('qrfs_token='));
+    expect(authCookie).toBeDefined();
+    expect(authCookie).toMatch(/HttpOnly/i);
+    expect(authCookie).toMatch(/SameSite=Lax/i);
+  });
+
   it('rejects duplicate email registration', async () => {
     const email = uniqueEmail('dup');
     await request(app).post('/api/auth/register').send({ name: 'Test', email, password: 'password123' });
