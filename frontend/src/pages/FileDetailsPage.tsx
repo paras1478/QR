@@ -6,6 +6,7 @@ import {
   getFile,
   deleteFile,
   publicDownloadUrl,
+  publicPreviewUrl,
   publicPageDownloadUrl,
   getPublicFile,
   setDisplayName as setDisplayNameRequest,
@@ -232,7 +233,7 @@ export function FileDetailsPage() {
         <div className="lg:col-span-2">
           {isPdf(file.mimeType) && meta && meta.pageCount && (
             <PDFViewer
-              fileUrl={publicDownloadUrl(file.shareId)}
+              previewUrl={publicPreviewUrl(file.shareId)}
               pageCount={meta.pageCount}
               onDownloadPage={(p) => window.open(publicPageDownloadUrl(file.shareId, p), '_blank')}
               onDownloadFull={() => window.open(publicDownloadUrl(file.shareId), '_blank')}

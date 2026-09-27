@@ -65,6 +65,10 @@ export function publicDownloadUrl(shareId: string) {
   return `${import.meta.env.VITE_API_URL}/share/${shareId}/download`;
 }
 
+export function publicPreviewUrl(shareId: string) {
+  return `${import.meta.env.VITE_API_URL}/share/${shareId}/preview`;
+}
+
 export function publicPageDownloadUrl(shareId: string, pageNumber: number) {
   return `${import.meta.env.VITE_API_URL}/share/${shareId}/page/${pageNumber}`;
 }

@@ -3,9 +3,9 @@ import { ok } from '../utils/apiResponse';
 import { pageParamSchema } from '../validators/file.validator';
 import * as shareService from '../services/share.service';
 
-function contentDisposition(filename: string): string {
+function contentDisposition(filename: string, disposition: 'attachment' | 'inline' = 'attachment'): string {
   const encoded = encodeURIComponent(filename);
-  return `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encoded}`;
+  return `${disposition}; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encoded}`;
 }
 
 export async function getPublic(req: Request, res: Response) {
@@ -17,6 +17,14 @@ export async function downloadFull(req: Request, res: Response) {
   const { buffer, file } = await shareService.downloadPublicFile(req.params.shareId);
   res.setHeader('Content-Type', file.mimeType);
   res.setHeader('Content-Disposition', contentDisposition(file.originalName));
+  res.send(buffer);
+}
+
+export async function previewPdf(req: Request, res: Response) {
+  const { buffer, file } = await shareService.previewPublicPdf(req.params.shareId);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', contentDisposition(file.originalName, 'inline'));
+  res.setHeader('Cache-Control', 'private, max-age=60');
   res.send(buffer);
 }
 

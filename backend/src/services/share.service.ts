@@ -38,6 +38,15 @@ export async function downloadPublicFile(shareId: string) {
   return { buffer, file };
 }
 
+export async function previewPublicPdf(shareId: string) {
+  const file = await getPublicFile(shareId);
+  if (file.mimeType !== 'application/pdf') {
+    throw new AppError('This file is not a PDF', 400);
+  }
+  const buffer = await storage.getObject(file.storageKey);
+  return { buffer, file };
+}
+
 export async function downloadPublicFilePage(shareId: string, pageNumber: number) {
   const file = await getPublicFile(shareId);
   if (file.mimeType !== 'application/pdf') {

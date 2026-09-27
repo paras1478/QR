@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Download, FileStack, File as FileIcon } from 'lucide-react';
-import { getPublicFile, publicDownloadUrl, publicPageDownloadUrl } from '../services/file.service';
+import { getPublicFile, publicDownloadUrl, publicPreviewUrl, publicPageDownloadUrl } from '../services/file.service';
 import { apiErrorMessage } from '../services/api';
 import { PublicFileMeta } from '../types';
 import { FullPageSpinner } from '../components/LoadingSpinner';
@@ -80,7 +80,7 @@ export function SharePage() {
 
       {isPdf(meta.mimeType) && meta.pageCount && (
         <PDFViewer
-          fileUrl={publicDownloadUrl(shareId)}
+          previewUrl={publicPreviewUrl(shareId)}
           pageCount={meta.pageCount}
           onDownloadPage={(p) => window.open(publicPageDownloadUrl(shareId, p), '_blank')}
           onDownloadFull={() => window.open(publicDownloadUrl(shareId), '_blank')}
