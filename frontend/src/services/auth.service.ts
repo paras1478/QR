@@ -32,3 +32,16 @@ export async function meRequest() {
   const res = await api.get<{ success: true; data: { user: User } }>('/auth/me');
   return res.data.data.user;
 }
+
+export async function forgotPasswordRequest(email: string) {
+  const res = await api.post<{ success: true; data: { message: string } }>('/auth/forgot-password', { email });
+  return res.data.data.message;
+}
+
+export async function resetPasswordRequest(token: string, password: string) {
+  const res = await api.post<{ success: true; data: { message: string } }>('/auth/reset-password', {
+    token,
+    password,
+  });
+  return res.data.data.message;
+}

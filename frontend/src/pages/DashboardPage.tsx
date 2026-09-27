@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Plus, FileStack } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { SearchBar } from '../components/SearchBar';
@@ -12,6 +12,7 @@ import { QRModal } from '../components/QRModal';
 import { ShareModal } from '../components/ShareModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { useDebounce } from '../hooks/useDebounce';
+import { usePolling, POLLING_INTERVAL } from '../hooks/usePolling';
 import { listFiles, searchFiles, deleteFile as deleteFileRequest, getFile } from '../services/file.service';
 import { apiErrorMessage } from '../services/api';
 import { FileItem } from '../types';
@@ -31,29 +32,55 @@ export function DashboardPage() {
   const [deleteTarget, setDeleteTarget] = useState<FileItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Tracks whether we've completed at least one successful fetch for the
+  // current query/page, so the background poll only shows the full skeleton
+  // loader on the very first load, not on every 5s refresh.
+  const hasLoadedRef = useRef(false);
+
+  const fetchFiles = useCallback(async () => {
+    const result = debouncedQuery ? await searchFiles(debouncedQuery, page, 20) : await listFiles(page, 20);
+    setFiles(result.items);
+    setTotalPages(result.totalPages);
+  }, [debouncedQuery, page]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const result = debouncedQuery
-        ? await searchFiles(debouncedQuery, page, 20)
-        : await listFiles(page, 20);
-      setFiles(result.items);
-      setTotalPages(result.totalPages);
+      await fetchFiles();
+      hasLoadedRef.current = true;
     } catch (err) {
       setError(apiErrorMessage(err, 'Failed to load your files'));
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, page]);
+  }, [fetchFiles]);
 
   useEffect(() => {
+    hasLoadedRef.current = false;
     setPage(1);
   }, [debouncedQuery]);
+
+  // Background refresh: keeps the file list (new uploads, sharing/QR
+  // changes made elsewhere) up to date without manual refresh. Silent on
+  // failure (no toast spam every 5s) and skipped entirely while the initial
+  // load/skeleton for this query+page hasn't finished yet, to avoid
+  // clobbering that in-flight request.
+  const refreshFiles = useCallback(async () => {
+    if (!hasLoadedRef.current) return;
+    try {
+      await fetchFiles();
+    } catch {
+      // Ignore transient background refresh errors; the visible file list
+      // and any user-triggered load() already surface real failures.
+    }
+  }, [fetchFiles]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  usePolling(refreshFiles, POLLING_INTERVAL);
 
   const handleQr = async (file: FileItem) => {
     try {

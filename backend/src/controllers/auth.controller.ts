@@ -1,8 +1,15 @@
 import { Response } from 'express';
 import crypto from 'crypto';
 import { env } from '../config/env';
-import { registerSchema, loginSchema } from '../validators/auth.validator';
-import { registerUser, loginUser, loginOrLinkGoogleUser } from '../services/auth.service';
+import { forgotPasswordSchema, resetPasswordSchema, registerSchema, loginSchema } from '../validators/auth.validator';
+import {
+  registerUser,
+  loginUser,
+  loginOrLinkGoogleUser,
+  createPasswordResetToken,
+  resetPasswordWithToken,
+} from '../services/auth.service';
+import { sendPasswordResetEmail } from '../services/email.service';
 import { buildGoogleAuthUrl, exchangeCodeForProfile } from '../services/googleOAuth.service';
 import { signToken } from '../utils/jwt';
 import { ok, fail } from '../utils/apiResponse';
@@ -55,6 +62,29 @@ export async function logout(req: AuthRequest, res: Response) {
 
 export async function me(req: AuthRequest, res: Response) {
   ok(res, { user: req.user });
+}
+
+export async function forgotPassword(req: AuthRequest, res: Response) {
+  const input = forgotPasswordSchema.parse(req.body);
+  const genericMessage = 'If an account exists for this email, a password reset link has been sent.';
+
+  const rawToken = await createPasswordResetToken(input.email);
+  if (rawToken) {
+    const resetUrl = `${env.frontendUrl.replace(/\/$/, '')}/reset-password?token=${rawToken}`;
+    try {
+      await sendPasswordResetEmail(input.email, resetUrl);
+    } catch (err) {
+      console.error('Failed to send password reset email', err);
+    }
+  }
+
+  ok(res, { message: genericMessage });
+}
+
+export async function resetPassword(req: AuthRequest, res: Response) {
+  const input = resetPasswordSchema.parse(req.body);
+  await resetPasswordWithToken(input.token, input.password);
+  ok(res, { message: 'Password reset successfully' });
 }
 
 export async function googleLogin(req: AuthRequest, res: Response) {

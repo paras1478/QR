@@ -56,6 +56,15 @@ export const env = {
   r2PublicUrl: process.env.R2_PUBLIC_URL || '',
 
   maxFileSizeMb: parseInt(process.env.MAX_FILE_SIZE_MB || '25', 10),
+
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPassword: process.env.SMTP_PASSWORD || '',
+  mailFrom: process.env.MAIL_FROM || '',
+  get smtpConfigured(): boolean {
+    return Boolean(this.smtpHost && this.smtpUser && this.smtpPassword && this.mailFrom);
+  },
 };
 
 const REQUIRED_R2_VARS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'R2_ENDPOINT'] as const;

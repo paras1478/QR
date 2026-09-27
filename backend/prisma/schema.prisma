@@ -20,6 +20,10 @@ model User {
   googleId     String?      @unique
   avatarUrl    String?
   authProvider AuthProvider @default(LOCAL)
+
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
