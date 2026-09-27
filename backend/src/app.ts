@@ -24,7 +24,13 @@ app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin(origin, callback) {
+      // Same-origin/non-browser requests (curl, server-to-server) send no Origin header.
+      if (!origin || env.allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   })
 );

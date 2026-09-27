@@ -29,7 +29,14 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   cookieName: process.env.COOKIE_NAME || 'qrfs_token',
 
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  // FRONTEND_URL may be a comma-separated list (local + production origins) to
+  // support CORS across environments. The first entry is used as the single
+  // canonical origin for redirects and QR/share links.
+  frontendUrl: (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0].trim().replace(/\/$/, ''),
+  allowedOrigins: (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean),
 
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
