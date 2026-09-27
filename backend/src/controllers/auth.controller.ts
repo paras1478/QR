@@ -14,12 +14,20 @@ import { AuthRequest } from '../middleware/auth.middleware';
 // whenever SameSite=None is used, which is satisfied since production
 // is always served over HTTPS. In local dev both apps share the same
 // site (loopback), so "Lax" is used there since it doesn't require HTTPS.
+//
+// frontend-*.onrender.com and backend-*.onrender.com are different
+// registrable domains (onrender.com is on the Public Suffix List), so this
+// cookie is a genuine third-party cookie in production. Some browsers
+// (Chrome's third-party cookie deprecation, CHIPS) partition or drop
+// SameSite=None cookies unless "Partitioned" is set, so it's added in
+// production to keep the cookie working under those policies.
 const cookieOptions = {
   httpOnly: true,
   secure: env.isProduction,
   sameSite: (env.isProduction ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000,
   path: '/',
+  partitioned: env.isProduction,
 };
 
 const OAUTH_STATE_COOKIE = 'qrfs_oauth_state';
