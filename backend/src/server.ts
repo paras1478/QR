@@ -25,8 +25,9 @@ async function main() {
     console.log('[Storage] STORAGE_DRIVER=local — using local filesystem storage.');
   }
 
-  app.listen(env.port, () => {
-    console.log(`Backend listening on http://localhost:${env.port}`);
+  const PORT = Number(process.env.PORT) || env.port;
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend listening on port ${PORT}`);
   });
 }
 
