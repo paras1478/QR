@@ -37,7 +37,7 @@ export async function register(req: AuthRequest, res: Response) {
   const user = await registerUser(input);
   const token = signToken({ userId: user.id });
   res.cookie(env.cookieName, token, cookieOptions);
-  ok(res, { user }, 201);
+  ok(res, { user, token }, 201);
 }
 
 export async function login(req: AuthRequest, res: Response) {
@@ -45,7 +45,7 @@ export async function login(req: AuthRequest, res: Response) {
   const user = await loginUser(input);
   const token = signToken({ userId: user.id });
   res.cookie(env.cookieName, token, cookieOptions);
-  ok(res, { user });
+  ok(res, { user, token });
 }
 
 export async function logout(req: AuthRequest, res: Response) {
@@ -97,7 +97,13 @@ export async function googleCallback(req: AuthRequest, res: Response) {
 
     const token = signToken({ userId: user.id });
     res.cookie(env.cookieName, token, cookieOptions);
-    res.redirect(`${env.frontendUrl.replace(/\/$/, '')}/dashboard`);
+    // The token is also passed via URL fragment (never sent to the server,
+    // never logged) so the frontend can store it for use as a Bearer token.
+    // This is required because the auth cookie alone is unreliable here:
+    // frontend-*.onrender.com and backend-*.onrender.com are different
+    // registrable domains, so the cookie is third-party and some browsers'
+    // cross-site cookie restrictions can silently drop it.
+    res.redirect(`${env.frontendUrl.replace(/\/$/, '')}/dashboard#token=${token}`);
   } catch {
     res.redirect(failureRedirect);
   }

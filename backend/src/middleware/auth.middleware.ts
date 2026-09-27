@@ -9,9 +9,22 @@ export interface AuthRequest extends Request {
   file?: Express.Multer.File;
 }
 
+function extractToken(req: Request): string | undefined {
+  // Prefer the Authorization header: the auth cookie is cross-site in
+  // production (frontend-*.onrender.com and backend-*.onrender.com are
+  // different registrable domains), so some browsers' third-party cookie
+  // restrictions can silently drop it even with SameSite=None; Partitioned.
+  // A Bearer token sent explicitly by the frontend is unaffected by that.
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice('Bearer '.length);
+  }
+  return req.cookies?.[env.cookieName];
+}
+
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const token = req.cookies?.[env.cookieName];
+    const token = extractToken(req);
     if (!token) {
       return fail(res, 'Authentication required', 401);
     }

@@ -1,6 +1,17 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User } from '../types';
 import { meRequest, loginRequest, logoutRequest, registerRequest } from '../services/auth.service';
+import { tokenStorage } from '../services/api';
+
+// The Google OAuth callback redirects to /dashboard#token=... (a URL
+// fragment, never sent to any server) so the frontend can pick up the
+// Bearer token the same way it would from a normal login response.
+function consumeOAuthTokenFromUrl() {
+  if (!window.location.hash.startsWith('#token=')) return;
+  const token = window.location.hash.slice('#token='.length);
+  tokenStorage.set(token);
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
 
 interface AuthContextValue {
   user: User | null;
@@ -28,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    consumeOAuthTokenFromUrl();
     refresh();
   }, [refresh]);
 
