@@ -17,6 +17,12 @@ model User {
   name         String
   email        String       @unique
   passwordHash String?
+  // Prisma's MongoDB connector always makes this a non-sparse unique index,
+  // which would let only one googleId-less (i.e. email/password) user ever
+  // exist. `ensureGoogleIdSparseIndex()` (run on server startup) repairs the
+  // actual MongoDB index to be sparse so this @unique constraint only
+  // applies to documents that actually have a googleId. Do not remove that
+  // startup step without keeping the index sparse some other way.
   googleId     String?      @unique
   avatarUrl    String?
   authProvider AuthProvider @default(LOCAL)

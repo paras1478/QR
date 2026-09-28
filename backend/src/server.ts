@@ -1,10 +1,17 @@
 import app from './app';
 import { env, checkR2Config } from './config/env';
 import { prisma } from './config/prisma';
+import { ensureGoogleIdSparseIndex } from './config/ensureIndexes';
 import { verifyR2Connectivity } from './services/storage.service';
 
 async function main() {
   await prisma.$connect();
+
+  try {
+    await ensureGoogleIdSparseIndex();
+  } catch (err) {
+    console.error('[DB] Failed to verify/repair the User.googleId index:', err);
+  }
 
   if (env.storageDriver === 'r2') {
     const configCheck = checkR2Config();

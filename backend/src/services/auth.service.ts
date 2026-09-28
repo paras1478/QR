@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/prisma';
 import { AppError } from '../utils/AppError';
 import { RegisterInput, LoginInput } from '../validators/auth.validator';
@@ -15,12 +16,22 @@ export async function registerUser(input: RegisterInput) {
 
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-  const user = await prisma.user.create({
-    data: { name: input.name, email: input.email, passwordHash },
-    select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true },
-  });
-
-  return user;
+  try {
+    const user = await prisma.user.create({
+      data: { name: input.name, email: input.email, passwordHash },
+      select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true },
+    });
+    return user;
+  } catch (err) {
+    // P2002 = unique constraint violation. Under normal operation this can
+    // only be the email index (a race with a concurrent register for the
+    // same address); ensureGoogleIdSparseIndex() at startup prevents the
+    // googleId index from ever rejecting a second null/missing value here.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      throw new AppError('An account with this email already exists', 409);
+    }
+    throw err;
+  }
 }
 
 export async function loginUser(input: LoginInput) {
