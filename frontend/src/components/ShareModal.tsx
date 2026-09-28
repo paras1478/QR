@@ -73,12 +73,19 @@ export function ShareModal({ open, onClose, file, shareUrl, onUpdated }: ShareMo
             <p className="text-xs text-gray-500 dark:text-gray-400">{file.isPublic ? 'Anyone with the link can view' : 'Link is disabled'}</p>
           </div>
           <button
+            type="button"
+            role="switch"
+            aria-checked={file.isPublic}
+            aria-label="Public Sharing"
             onClick={handleToggle}
             disabled={toggling}
-            className={`relative h-6 w-11 rounded-full transition-colors ${file.isPublic ? 'bg-brand-600' : 'bg-gray-300 dark:bg-gray-700'}`}
+            className={`relative inline-block h-6 w-11 shrink-0 rounded-full transition-colors duration-200 disabled:opacity-60 ${
+              file.isPublic ? 'bg-brand-600' : 'bg-gray-300 dark:bg-gray-700'
+            }`}
           >
             <span
-              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${file.isPublic ? 'translate-x-5' : 'translate-x-0.5'}`}
+              className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200"
+              style={{ transform: file.isPublic ? 'translateX(20px)' : 'translateX(0)' }}
             />
           </button>
         </div>

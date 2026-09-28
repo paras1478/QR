@@ -25,3 +25,27 @@ body {
 .toolbar-btn {
   @apply flex h-8 w-8 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-30 dark:text-gray-300 dark:hover:bg-gray-800;
 }
+
+@keyframes float-drift {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(calc(var(--float-drift, 20px) * -1)) rotate(var(--float-rotate, 4deg));
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+.floating-icon {
+  animation-name: float-drift;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-icon {
+    animation: none;
+  }
+}
